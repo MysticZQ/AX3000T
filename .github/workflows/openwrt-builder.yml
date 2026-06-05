@@ -1,0 +1,77 @@
+name: Build OpenWrt
+
+on:
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+
+env:
+  REPO_URL: https://github.com/hanwckf/immortalwrt-mt798x.git
+  REPO_BRANCH: openwrt-21.02
+  CONFIG_FILE: XiaoMi-AX3000T-v2.config
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: false
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install build-essential clang flex g++ gawk gcc-multilib gettext git libelf-dev libssl-dev libncurses5-dev libsqlite3-dev make python3-dev python3-pip rsync unzip zlib1g-dev file
+        sudo apt-get -y autoremove --purge
+        sudo apt-get clean
+
+    - name: Clone source code
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: Copy config file
+      run: |
+        cp "$GITHUB_WORKSPACE/$CONFIG_FILE" openwrt/.config
+
+    - name: Update feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Make defconfig
+      run: |
+        cd openwrt
+        make defconfig
+
+    - name: Download package
+      run: |
+        cd openwrt
+        make download -j8
+
+    - name: Compile firmware
+      run: |
+        cd openwrt
+        make -j$(nproc) || make -j1 V=s
+
+    - name: Assemble firmware
+      run: |
+        cd openwrt
+        rm -rf ./bin/targets/*/*/packages
+        mkdir -p ./bin/firmware/
+        find ./bin/targets/ -name "*factory.bin" -o -name "*sysupgrade.bin" -o -name "*firmware.bin" | xargs -i mv {} ./bin/firmware/
+        echo "FIRMWARE=$(find ./bin/firmware/ -type f -exec basename {} \; | tr '\n' ' ')" >> $GITHUB_ENV
+
+    - name: Upload firmware to artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt_firmware
+        path: openwrt/bin/firmware/
