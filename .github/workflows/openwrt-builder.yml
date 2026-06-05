@@ -66,6 +66,7 @@ jobs:
       run: |
         cd openwrt
         rm -rf ./bin/targets/*/*/packages
+        mkdir -p ./bin/firmware/
         find ./bin/targets/ -name "*factory.bin" -o -name "*sysupgrade.bin" -o -name "*firmware.bin" | xargs -i mv {} ./bin/firmware/
         echo "FIRMWARE=$(find ./bin/firmware/ -type f -exec basename {} \; | tr '\n' ' ')" >> $GITHUB_ENV
 
