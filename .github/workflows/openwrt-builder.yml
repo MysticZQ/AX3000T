@@ -40,14 +40,17 @@ jobs:
     - name: Copy config file
       run: |
         cp "$GITHUB_WORKSPACE/$CONFIG_FILE" openwrt/.config
-        cd openwrt
-        make defconfig
 
     - name: Update feeds
       run: |
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
+
+    - name: Make defconfig
+      run: |
+        cd openwrt
+        make defconfig
 
     - name: Download package
       run: |
